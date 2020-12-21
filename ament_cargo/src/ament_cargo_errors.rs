@@ -83,6 +83,7 @@ pub fn missing_path_error(bad_path: &PathBuf) -> AmentBuildError {
     AmentBuildError::ExportNotFound { bad_path: path_str }
 }
 
+#[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
