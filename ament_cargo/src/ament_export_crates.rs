@@ -12,34 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
+use std::env;
 use std::path::{Path, PathBuf};
+use std::unimplemented;
 
-use crate::ament_cargo_errors::AmentBuildError;
+use crate::ament_cargo_errors::{missing_path_error, AmentBuildError};
 
-struct ExportCrates {
-    relative_crates: HashSet<PathBuf>,
-    absolute_crates: HashSet<PathBuf>,
-}
-
-impl ExportCrates {
-    fn new() -> Self {
-        ExportCrates {
-            relative_crates: HashSet::new(),
-            absolute_crates: HashSet::new(),
-        }
-    }
-
-    fn add_crate(&mut self, crate_to_add: &PathBuf) {
-        if crate_to_add.is_absolute() {
-            self.absolute_crates.insert(crate_to_add.clone());
-        } else {
-            self.relative_crates.insert(crate_to_add.clone());
-        }
+fn check_crate_path_exists(path_to_check: &PathBuf) -> Result<&PathBuf, AmentBuildError> {
+    match path_to_check.exists() {
+        true => Ok(path_to_check),
+        false => Err(missing_path_error(path_to_check)),
     }
 }
 
-fn ament_register_extension(extension_point: &str, package_name: &str, filename: &Path) {
+pub fn ament_register_extension(extension_point: &str, package_name: &str, filename: &Path) {
     // #
     // # Register a CMake filename to be included as part of an extension
     // # point.
@@ -59,9 +45,10 @@ fn ament_register_extension(extension_point: &str, package_name: &str, filename:
     //   list(APPEND AMENT_EXTENSIONS_${extension_point}
     //     "${package_name}:${cmake_filename}")
     // endmacro()
+    unimplemented!("ament_register_extension is unimplemented")
 }
 
-fn register_package_hook() {
+pub fn register_package_hook() {
     //     macro(_ament_cmake_export_crates_register_package_hook)
     //     if(NOT DEFINED
     //         _AMENT_CMAKE_EXPORT_CRATES_PACKAGE_HOOK_REGISTERED)
@@ -76,9 +63,10 @@ fn register_package_hook() {
 
     //   include(
     //     "${ament_cmake_export_crates_DIR}/ament_export_crates.cmake")
+    unimplemented!("register_package_hook is unimplemented")
 }
 
-fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<ExportCrates, AmentBuildError> {
+pub fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>, AmentBuildError> {
     //     if(_${PROJECT_NAME}_AMENT_PACKAGE)
     //       message(FATAL_ERROR
     //         "ament_export_crates() must be called before ament_package()")
@@ -102,24 +90,29 @@ fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<ExportCrates, Ament
     //         endif()
     //       endforeach()
     //     endif()
-    let mut crate_exports = ExportCrates::new();
+    let ament_path: PathBuf = env::var("AMENT_PREFIX_PATH")
+        .map_err(|source| AmentBuildError::AmentNotFound { source })?
+        .into();
 
-    for crate_to_add in crate_paths {
-        // Make sure the crate actually exists
-        if !crate_to_add.exists() {
-            match crate_to_add.to_str() {
-                Some(x) => {
-                    return Err(AmentBuildError::ExportNotFound {
-                        bad_path: x.to_owned(),
-                    })
+    let mut export_path_error = Ok(());
+    let crate_exports: Vec<PathBuf> = crate_paths
+        .iter()
+        .scan(
+            &mut export_path_error,
+            |scan_errors, res| match check_crate_path_exists(res) {
+                Ok(o) => Some(o),
+                Err(e) => {
+                    **scan_errors = Err(e);
+                    None
                 }
-                None => return Err(AmentBuildError::UnstringifyableNotFound {}),
-            };
-        }
-
-        // Add crate to export container
-        crate_exports.add_crate(crate_to_add)
-    }
+            },
+        )
+        .map(|x| match x.is_absolute() {
+            true => x.clone(),
+            false => ament_path.join(x.clone()),
+        })
+        .collect();
+    export_path_error?; // If a path was missing, this will contain the error
 
     return Ok(crate_exports);
 }
