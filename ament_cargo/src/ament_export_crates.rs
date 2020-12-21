@@ -18,10 +18,10 @@ use std::unimplemented;
 
 use crate::ament_cargo_errors::{missing_path_error, AmentBuildError};
 
-fn check_crate_path_exists(path_to_check: &PathBuf) -> Result<&PathBuf, AmentBuildError> {
+fn check_crate_path_exists(path_to_check: &PathBuf) -> Result<(), AmentBuildError> {
     match path_to_check.exists() {
-        true => Ok(path_to_check),
-        false => Err(missing_path_error(path_to_check)),
+        true => Ok(()),
+        false => Err(missing_path_error(&path_to_check.to_owned())),
     }
 }
 
@@ -66,7 +66,7 @@ pub fn register_package_hook() {
     unimplemented!("register_package_hook is unimplemented")
 }
 
-pub fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>, AmentBuildError> {
+pub fn ament_export_crates(out_dir: &PathBuf, crate_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>, AmentBuildError> {
     //     if(_${PROJECT_NAME}_AMENT_PACKAGE)
     //       message(FATAL_ERROR
     //         "ament_export_crates() must be called before ament_package()")
@@ -90,27 +90,24 @@ pub fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>, A
     //         endif()
     //       endforeach()
     //     endif()
-    let ament_path: PathBuf = env::var("AMENT_PREFIX_PATH")
-        .map_err(|source| AmentBuildError::AmentNotFound { source })?
-        .into();
 
     let mut export_path_error = Ok(());
     let crate_exports: Vec<PathBuf> = crate_paths
         .iter()
+        .map(|x| match x.is_absolute() {
+            true => x.clone(),
+            false => out_dir.join(x),
+        })
         .scan(
             &mut export_path_error,
-            |scan_errors, res| match check_crate_path_exists(res) {
-                Ok(o) => Some(o),
+            |scan_errors, res| match check_crate_path_exists(&res) {
+                Ok(_) => Some(res),
                 Err(e) => {
                     **scan_errors = Err(e);
                     None
                 }
             },
         )
-        .map(|x| match x.is_absolute() {
-            true => x.clone(),
-            false => ament_path.join(x.clone()),
-        })
         .collect();
     export_path_error?; // If a path was missing, this will contain the error
 
@@ -131,7 +128,8 @@ mod tests {
         let path_str = "an/unspeakable/eldritch/horror/sleeps";
         let expected_result = Err(missing_path_error(&PathBuf::from(path_str)));
         let in_path = vec![PathBuf::from(path_str)];
-        let result = ament_export_crates(&in_path);
+        let out_path = PathBuf::from("/cthulhu");
+        let result = ament_export_crates(&out_path, &in_path);
         assert_eq!(expected_result, result);
     }
 }
