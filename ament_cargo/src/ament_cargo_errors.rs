@@ -48,6 +48,10 @@ pub enum AmentBuildError {
     #[error("Cannot find crate for export at {bad_path}!")]
     ExportNotFound { bad_path: String },
 
+    /// Represents that function that requires being run in a build script was accessed outside a build script
+    #[error("Function called outside of build context")]
+    NotInBuildContext,
+
     // Placeholder for unknown Ament build errors
     #[error("Unknown Ament build error occurred!")]
     Unknown,
