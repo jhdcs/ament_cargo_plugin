@@ -18,6 +18,25 @@ use thiserror::Error;
 
 #[allow(dead_code)]
 #[derive(Error, Debug)]
+pub enum InvalidErrorComparison {
+    #[error("Not an AmentNotFound")]
+    NotAmentNotFound,
+
+    #[error("Not an ExportNotFound")]
+    NotExportNotFound,
+
+    #[error("Not an UnstringifyableNotFound")]
+    NotUnstringifyableNotFound,
+
+    #[error("Not an IOError")]
+    NotIOError,
+
+    #[error("Not an Unknown error")]
+    NotUnknown,
+}
+
+#[allow(dead_code)]
+#[derive(Error, Debug, PartialEq)]
 pub enum AmentBuildError {
     /// Represents that the environment variable AMENT_PREFIX_PATH is missing.
     /// Most often caused by forgetting to source the ROS installation before building.
@@ -29,28 +48,56 @@ pub enum AmentBuildError {
     #[error("Cannot find crate for export at {bad_path}!")]
     ExportNotFound { bad_path: String },
 
-    /// Represents a crate-export-not-found error, but the bad path is unstringifyable. So it's
-    /// up to the user to figure out what the path is, unfortunately...
-    #[error("Cannot find crate for export - additionally, path cannot be stringified!")]
-    UnstringifyableNotFound,
-
-    /// Represents all other cases of std::io::Error.
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-
     // Placeholder for unknown Ament build errors
     #[error("Unknown Ament build error occurred!")]
     Unknown,
 }
 
-#[allow(dead_code)]
+impl AmentBuildError {
+    pub fn is_ament_not_found(&self) -> bool {
+        match *self {
+            Self::AmentNotFound { source: _ } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_export_not_found(&self) -> bool {
+        match *self {
+            Self::ExportNotFound { bad_path: _ } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        match *self {
+            Self::Unknown => true,
+            _ => false,
+        }
+    }
+}
+
 /// Create an ExportNotFound error if the path is stringifyable.
 /// Otherwise, create UnstringifyableNotFound.
 pub fn missing_path_error(bad_path: &PathBuf) -> AmentBuildError {
-    match bad_path.to_str() {
-        None => AmentBuildError::UnstringifyableNotFound {},
-        Some(x) => AmentBuildError::ExportNotFound {
-            bad_path: x.to_owned(),
-        },
+    let path_str = bad_path.as_os_str().to_string_lossy().into_owned();
+    AmentBuildError::ExportNotFound { bad_path: path_str }
+}
+
+mod tests {
+    use std::path::PathBuf;
+
+    use super::{missing_path_error, AmentBuildError};
+
+    #[test]
+    fn test_missing_path_error() {
+        let path_str = "rutabega";
+        let path = PathBuf::from(path_str);
+
+        let mpe = missing_path_error(&path);
+        let expected = AmentBuildError::ExportNotFound {
+            bad_path: path_str.to_owned(),
+        };
+
+        assert_eq!(mpe, expected)
     }
 }

@@ -119,8 +119,19 @@ pub fn ament_export_crates(crate_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>, A
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use crate::ament_cargo_errors::missing_path_error;
+
+    use super::ament_export_crates;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn ament_export_crates_fails() {
+        // This is unlikely to be a valid path.
+        let path_str = "an/unspeakable/eldritch/horror/sleeps";
+        let expected_result = Err(missing_path_error(&PathBuf::from(path_str)));
+        let in_path = vec![PathBuf::from(path_str)];
+        let result = ament_export_crates(&in_path);
+        assert_eq!(expected_result, result);
     }
 }
