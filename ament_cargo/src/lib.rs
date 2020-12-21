@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod ament_cargo_errors;
 mod ament_export_crates;
+mod ament_export_dependencies;
 
 #[cfg(test)]
 mod tests {
