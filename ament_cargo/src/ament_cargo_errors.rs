@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{env::VarError, path::PathBuf};
+
 use thiserror::Error;
 
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum AmentBuildError {
     /// Represents that the environment variable AMENT_PREFIX_PATH is missing.
     /// Most often caused by forgetting to source the ROS installation before building.
     #[error("environment variable \"AMENT_PREFIX_PATH\" not found! Did you forget to source ROS?")]
-    AmentNotFound { source: std::io::Error },
+    AmentNotFound { source: VarError },
 
     /// Represents a crate-export-not-found error. I.e: Ament was told to build a crate, but the
     /// path is bad.
@@ -38,4 +41,16 @@ pub enum AmentBuildError {
     // Placeholder for unknown Ament build errors
     #[error("Unknown Ament build error occurred!")]
     Unknown,
+}
+
+#[allow(dead_code)]
+/// Create an ExportNotFound error if the path is stringifyable.
+/// Otherwise, create UnstringifyableNotFound.
+pub fn missing_path_error(bad_path: &PathBuf) -> AmentBuildError {
+    match bad_path.to_str() {
+        None => AmentBuildError::UnstringifyableNotFound {},
+        Some(x) => AmentBuildError::ExportNotFound {
+            bad_path: x.to_owned(),
+        },
+    }
 }
