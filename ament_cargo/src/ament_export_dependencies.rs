@@ -11,8 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::path::PathBuf;
 
-pub fn ament_export_dependencies() {
+pub fn ament_export_dependencies(dependency_list: &mut Vec<PathBuf>, dependent_paths: &Vec<PathBuf>) {
     // # Export dependencies to downstream packages.
     // #
     // # Each package name must be find_package()-able with the exact same case.
@@ -41,5 +42,7 @@ pub fn ament_export_dependencies() {
     //     endforeach()
     //   endif()
     // endmacro()
+    dependency_list.extend_from_slice(dependent_paths);
+    
     unimplemented!("ament_export_dependencies is unimplemented")
 }
